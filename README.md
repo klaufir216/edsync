@@ -43,13 +43,13 @@ Verify the signature of the catalog and file hashes based on `edsync-catalog.sha
 
 ### `edsync` without parameters (ran by clients)
 
-Running `edsync` without parameter triggers an update based on `edsync-source.json`:
+Running `edsync` without parameters trigger an update based on `edsync-source.json`:
 
 - download the catalog based on the URL in `edsync-source.json`
 
 - verify the catalog based on the public key in `edsync-source.json`
 
-- download files from the URL if local hash are different from remote `edsync-catalog.sha3`
+- download files from the URL if local hashes are different from ones in remote `edsync-catalog.sha3`
 
 ## Initial workflow
 
