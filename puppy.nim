@@ -1,5 +1,6 @@
 import net, puppy/common, strutils, urlly, zippy
 
+
 export common, urlly
 
 const CRLF = "\r\n"
@@ -73,6 +74,7 @@ proc addDefaultHeaders(req: Request) =
 when defined(windows) and not defined(puppyLibcurl):
   # WinHTTP Windows
   import puppy/windefs, puppy/winutils
+  import osinfo/win
 elif defined(macosx) and not defined(puppyLibcurl):
   # AppKit macOS
   import puppy/machttp
@@ -107,16 +109,31 @@ proc fetch*(req: Request, progressCallback: PuppyProgressCallback = nil): Respon
     try:
       let wideUserAgent = req.headers["user-agent"].toUtf16()
 
-      hSession = WinHttpOpen(
-        wideUserAgent[0].unsafeAddr,
-        WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-        nil,
-        nil,
-        0
-      )
+      var vi = getVersionInfo()
+      if (vi.majorVersion == 6 and vi.minorVersion > 1) or vi.majorVersion > 6:
+        # above win7sp1
+        hSession = WinHttpOpen(
+          wideUserAgent[0].unsafeAddr,
+          WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+          nil,
+          nil,
+          0
+        )
+      else:
+        # win7sp1
+        hSession = WinHttpOpen(
+          wideUserAgent[0].unsafeAddr,
+          0,
+          nil,
+          nil,
+          0
+        )
+
+
       if hSession == nil:
+        var winError = GetLastError()
         raise newException(
-          PuppyError, "WinHttpOpen error: " & $GetLastError()
+          PuppyError, "WinHttpOpen error: " & $winError
         )
 
       let ms = (req.timeout * 1000).int32
