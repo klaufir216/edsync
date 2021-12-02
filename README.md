@@ -6,6 +6,8 @@
 
 * 256-bit SHA3 file hashes
 
+* Minimal dependencies: The Windows build needs system dlls only; uses WinHTTP for connection. On Linux the only dependencies are `libcurl` and `openssl`.
+
 * Stores files in a catalog where each line contains a filename and a SHA3 hash. Catalog files are compatible with Total Commander: hitting `enter` on a `.sha3` catalog file checks the hashes.
 
 * All-or-nothing update: no partial update is applied. Files first written with a post-fix `.edsync-pending`
@@ -16,17 +18,17 @@
 
 ### `edsync keygen` (ran by distributor)
 
-Create a public+private key-pair in the HOME directory: `.edsync-signer-keypair`
+Create a public+private key-pair HOME directory: `.edsync-signer-keypair`
 
 ### `edsync update-catalog` (ran by distributor)
 
-* creates `edsync-catalog.sha3`, containing the SHA3 hashes of all files under the current directory (ignores files specified in `.edsyncignore`)
+* create `edsync-catalog.sha3`, containing the SHA3 hashes of all files under the current directory (ignores files specified in `.edsyncignore`)
 
-* creates `edsync-catalog.sig`, the signature for `edsync-catalog.sha3` based on the private key in `HOME\.edsync-signer-keypair`
+* create `edsync-catalog.sig`, the signature for `edsync-catalog.sha3` based on the private key in `HOME\.edsync-signer-keypair`
 
 ### `edsync make-source-json [url]` (ran by distributor)
 
-Convenience command for making `edsync-source.json`, a file that contains a public key & URL. `edsync-source.json` has to be distributed to clients along with the `edsync` executable.
+Convenience command for creating `edsync-source.json`, a file that contains a public key & URL. `edsync-source.json` has to be distributed to clients along with the `edsync` executable.
 
 ```json
 {
@@ -35,15 +37,19 @@ Convenience command for making `edsync-source.json`, a file that contains a publ
 }
 ```
 
+### `edsync verify`
+
+Verify the signature of the catalog and file hashes based on `edsync-catalog.sha3`
+
 ### `edsync` without parameters (ran by clients)
 
-Running `edsync` without parameter triggers an update based on `edsync-source.json`
+Running `edsync` without parameter triggers an update based on `edsync-source.json`:
 
-- download the catalog based on the url in `edsync-source.json`
+- download the catalog based on the URL in `edsync-source.json`
 
 - verify the catalog based on the public key in `edsync-source.json`
 
-- download files from the url if their hashes are different in `edsync-catalog.sha3`
+- download files from the URL if local hash are different from remote `edsync-catalog.sha3`
 
 ## Initial workflow
 
