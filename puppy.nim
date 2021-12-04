@@ -434,7 +434,7 @@ proc fetch*(req: Request, progressCallback: PuppyProgressCallback = nil): Respon
 
     discard curl.easy_setopt(OPT_URL, strings[0].cstring)
     discard curl.easy_setopt(OPT_CUSTOMREQUEST, strings[1].cstring)
-    discard curl.easy_setopt(OPT_TIMEOUT, req.timeout.int)
+    discard curl.easy_setopt(OPT_TIMEOUT, 0)
 
     # Create the Pslist for passing headers to curl manually. This is to
     # avoid needing to call slist_free_all which creates problems
