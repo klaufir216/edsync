@@ -849,6 +849,16 @@ proc myGetProcAddress(hModule: HMODULE, lpProcName: LPCSTR): FARPROC {.stdcall, 
         if hModule == memLibs[i][HANDLE]:
           return memLibs[i].symAddr(lpProcName)
 
+# fix for embedding OpenSSL
+# source: https://github.com/maueroats/racket/commit/d81f6b41b57d46e4fedb67513a815bdd29e8fb1e
+proc originalGetModuleHandleExW(dwFlags: DWORD, lpModuleName: LPCWSTR, phModule: ptr HMODULE): WINBOOL {.stdcall, dynlib: "kernel32", importc: "GetModuleHandleExW".}
+
+proc myGetModuleHandleExW(dwFlags: DWORD, lpModuleName: LPCWSTR, phModule: ptr HMODULE): WINBOOL {.stdcall, minhook: originalGetModuleHandleExW.} =
+    if (((dwFlags and GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS) != 0) and (phModule != nil)):
+        phModule[] = GetModuleHandle(NULL)
+        return 1
+    return originalGetModuleHandleExW(dwFlags, lpModuleName, phModule)
+
 proc unhook*(lib: MemoryModule) {.raises: [].} =
   ## Removes the hooks.
   assert lib != nil
@@ -865,6 +875,7 @@ proc unhook*(lib: MemoryModule) {.raises: [].} =
       try:
         queueDisableHook(LdrLoadDll)
         queueDisableHook(GetProcAddress)
+        queueDisableHook(originalGetModuleHandleExW)
         applyQueued()
       except: discard
       hookEnabled = false
@@ -887,6 +898,7 @@ proc hook*(lib: MemoryModule, name: string) {.raises: [LibraryError].} =
       try:
         queueEnableHook(LdrLoadDll)
         queueEnableHook(GetProcAddress)
+        queueEnableHook(originalGetModuleHandleExW)
         applyQueued()
       except: discard
       hookEnabled = true
@@ -1041,7 +1053,6 @@ proc compose(dll, def: NimNode, hasRaises: bool): NimNode =
 
         else:
           {.fatal: "memlib only accepts DllContent, MemoryModule, or string".}
-
     call()
 
   def.addParams()
