@@ -6,7 +6,7 @@
 
 * 256-bit SHA3 file hashes
 
-* Minimal dependencies: The Windows build needs system dlls only; uses WinHTTP for connection. On Linux the only dependencies are `libcurl` and `openssl`.
+* Minimal dependencies: The Windows build needs libcurl.dll. On Linux the only dependencies are `libcurl` and `openssl`.
 
 * Stores files in a catalog where each line contains a filename and a SHA3 hash. Catalog files are compatible with Total Commander: hitting `enter` on a `.sha3` catalog file checks the hashes.
 
@@ -22,9 +22,9 @@ Create a public+private key-pair HOME directory: `.edsync-signer-keypair`
 
 ### `edsync update-catalog` (ran by distributor)
 
-* create `edsync-catalog.sha3`, containing the SHA3 hashes of all files under the current directory (ignores files specified in `.edsyncignore`)
+* creates `edsync-catalog.sha3`, containing the SHA3 hashes of all files under the current directory (ignores files specified in `.edsyncignore`)
 
-* create `edsync-catalog.sig`, the signature for `edsync-catalog.sha3` based on the private key in `HOME\.edsync-signer-keypair`
+* creates `edsync-catalog.sig`, the signature for `edsync-catalog.sha3` based on the private key in `HOME\.edsync-signer-keypair`
 
 ### `edsync make-source-json [url]` (ran by distributor)
 

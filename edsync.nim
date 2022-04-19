@@ -1,6 +1,5 @@
 # nimble install https://github.com/niv/ed25519.nim
 # nimble install https://github.com/khchen/hashlib
-# nimble install puppy
 # nimble install argparse
 # nimble install glob
 
@@ -13,11 +12,14 @@ import json
 import os
 import strutils
 import hashlib/rhash/sha3
-import puppy
 import uri
 import options
 import argparse
 import glob
+import ncurl
+import retry
+import std/strformat
+import humanbytes
 
 const catalogFilename = "edsync-catalog.sha3"
 const signatureFilename = "edsync-catalog.sig"
@@ -190,8 +192,8 @@ proc getPendingPath(path: string): string =
     path & pendingPathPostfix
 
 proc downloadRemoteFile(remoteHash: string, path: string): Option[string] =
-    proc progressCallback(bytesRead: int, bytesTotal: int) =
-        stdout.write("\r" & $path & ": " & $bytesRead & " / " & $bytesTotal)
+    #proc progressCallback(bytesRead: int, bytesTotal: int) =
+    #    stdout.write("\r" & $path & ": " & $bytesRead & " / " & $bytesTotal)
 
     var localHash = calculateFileSha3(path)
     if remoteHash == localHash:
@@ -206,11 +208,24 @@ proc downloadRemoteFile(remoteHash: string, path: string): Option[string] =
         echo("Already downloaded: " & path)
     else:
         # echo("Downloading: " & path)
-        var pendingContent = puppy.fetch(getRemoteUrl(path), progressCallback=progressCallback)
-        echo ""
-        var pendingFile: File = open(pendingPath, fmWrite)
-        pendingFile.write(pendingContent)
-        close(pendingFile)
+        #var pendingContent = puppy.fetch(getRemoteUrl(path), progressCallback=progressCallback)
+        #echo ""
+        #var pendingFile: File = open(pendingPath, fmWrite)
+        #pendingFile.write(pendingContent)
+        #close(pendingFile)
+        #retryVoid[CurlError](proc() = ncurlDownload(url, output_filename), 
+        #    max_tries=10, sleep_time_sec=5)
+        #var url = getRemoteUrl(path)
+        #let url_filename = url.split('/')[^1]
+        proc onProgress(current:int, total: int) =
+            if total > 0:
+                var msg = fmt"{path}: {humanBytes(current)} / {humanBytes(total)}"
+                stderr.write(fmt"{msg:<79}" & "\r")
+
+        retryVoid[CurlError](proc() = ncurlDownload(getRemoteUrl(path), pendingPath, onProgress), 
+            max_tries=10, sleep_time_sec=5)
+
+        stderr.write("\n")
     var downloadedFileHash = calculateFileSha3(pendingPath)
     if downloadedFileHash != remoteHash:
         stderr.writeLine("Hash mismatch for " & path)
@@ -247,10 +262,14 @@ proc waitFilesWriteable(paths: seq[string]): bool =
 proc runUpdate(): int = 
     var url = getRemoteUrl(catalogFilename)
     echo("Checking update at " & url)
-    var remoteCatalogContent = puppy.fetch(url)
+    #var remoteCatalogContent = puppy.fetch(url)
+    var remoteCatalogContent = retry[CurlError, string](proc():string = return ncurlFetch(url), 
+            max_tries=10, sleep_time_sec=5)
     echo("remote catalog content")
     echo(remoteCatalogContent)
-    var remoteSignatureConent = puppy.fetch(getRemoteUrl(signatureFilename))
+    #var remoteSignatureConent = puppy.fetch(getRemoteUrl(signatureFilename))
+    var remoteSignatureConent = retry[CurlError, string](proc():string = return ncurlFetch(getRemoteUrl(signatureFilename)), 
+            max_tries=10, sleep_time_sec=5)
     var remoteSignature = loadSignatureString(remoteSignatureConent)
     if not verifyStringSignature(remoteCatalogContent, remoteSignature):
         stderr.writeLine(url & " signature verification failed")
