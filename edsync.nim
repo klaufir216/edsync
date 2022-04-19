@@ -185,8 +185,7 @@ proc verifyLocalCatalog(): bool =
             result = false
 
 proc getRemoteUrl(path: string): string =
-    let sourceUrl = loadSourceJsonUrl()
-    return $uri.combine(parseUri(sourceUrl), parseUri(path))
+    return $(parseUri(loadSourceJsonUrl()) / path)
 
 proc getPendingPath(path: string): string =
     path & pendingPathPostfix
