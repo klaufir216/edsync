@@ -2,6 +2,9 @@ import strutils
 import std/tables
 import std/strformat
 import os
+import strutils
+import sequtils
+import uri
 import libcurl
 
 when defined(ncurltest):
@@ -23,6 +26,23 @@ type
     dataCallback: proc(session: PCurl, buffer: string)
     headerCallback: proc(headers: OrderedTable[string, string])
     progressCallback: proc(current: int, total: int)
+
+proc ncurlEscapePart(part: string): string =
+    if part == "":
+        return ""
+    let curl = libcurl.easy_init()
+    defer: libcurl.easy_cleanup(curl)
+    var escaped_string: cstring = curl.easy_escape(part.cstring, int32(len(part)));
+    defer: libcurl.free(escaped_string)
+    result = $escaped_string
+
+proc ncurlEscape(url: string): string = 
+    var uriObject = parseUri(url)
+    var parts = uriObject.path.split('/')
+    var parts_escaped = map(parts, ncurlEscapePart)
+    var path_escaped = join(parts_escaped, "/")
+    uriObject.path = path_escaped
+    return $uriObject
 
 proc curlHeaderFunction(
   buffer: cstring,
@@ -102,9 +122,12 @@ proc curlRequest*(
     onHeaderCallback: proc(responseHeaders: OrderedTable[string, string]) = nil,
     onProgressCallback: proc(current:int, total: int) = nil ) =
     let curl = libcurl.easy_init()
+    defer: libcurl.easy_cleanup(curl)
+    let escaped_url = ncurlEscape(url)
+
     var ri = RequestInfo(
         session: curl,
-        url: url,
+        url: escaped_url,
         responseHeaders: initOrderedTable[string, string](),
         dataCallback: onDataCallback,
         headerCallback: onHeaderCallback,
@@ -119,7 +142,7 @@ proc curlRequest*(
     if http_method == "HEAD":
         discard curl.easy_setopt(OPT_NOBODY, 1);
 
-    discard curl.easy_setopt(OPT_URL, url.cstring)
+    discard curl.easy_setopt(OPT_URL, escaped_url.cstring)
     
     if fileExists(curlCaBundleFilename):
         # echo("using " & curlCaBundleFilename)
