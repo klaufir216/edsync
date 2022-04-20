@@ -126,8 +126,9 @@ proc curlRequest*(
         discard curl.easy_setopt(OPT_CAINFO, curlCaBundleFilename.cstring)
     else:
         # echo("using embedded CA bundle")
-        var caInfoBlob = curl_blob(data: curlCaBundle.cstring, len: len(curlCaBundle))
-        discard curl.easy_setopt(OPT_CAINFO_BLOB, caInfoBlob)
+        when defined(windows):
+            var caInfoBlob = curl_blob(data: curlCaBundle.cstring, len: len(curlCaBundle))
+            discard curl.easy_setopt(OPT_CAINFO_BLOB, caInfoBlob)
     
     
     # struct curl_slist *list = NULL;
