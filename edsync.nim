@@ -21,6 +21,8 @@ import retry
 import std/strformat
 import humanbytes
 
+const version = "v1.4"
+
 const catalogFilename = "edsync-catalog.sha3"
 const signatureFilename = "edsync-catalog.sig"
 const edsyncSourceFilename = "edsync-source.json"
@@ -220,7 +222,6 @@ proc downloadRemoteFile(remoteHash: string, path: string): Option[string] =
             if total > 0:
                 var msg = fmt"{path}: {humanBytes(current)} / {humanBytes(total)}"
                 stderr.write(fmt"{msg:<79}" & "\r")
-
         retryVoid[CurlError](proc() = ncurlDownload(getRemoteUrl(path), pendingPath, onProgress), 
             max_tries=10, sleep_time_sec=5)
 
@@ -333,7 +334,7 @@ when isMainModule:
     if len(commandLineParams()) == 0:
         quit(runUpdate())
     var p = newParser:
-        help("{prog}: Sync signed files on HTTP")
+        help("edsync " & version)
         command("update-catalog"):
             help("Create " & catalogFilename & " & " & signatureFilename)
             run:
