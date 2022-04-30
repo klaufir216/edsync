@@ -15,9 +15,13 @@
 import times
 
 when defined(windows):
+    import memlib
+    const StaticDllLib = staticReadDll("libcurl.dll")
+    let memoryModuleLib = checkedLoadLib(StaticDllLib)
+    memoryModuleLib.hook("libcurl.dll")
+    buildPragma { memlib: memoryModuleLib }: mylib
     const
         curlCaBundle* = staticRead("curl-ca-bundle.crt")
-        libname = "libcurl.dll"
 elif defined(macosx):
     const
         libname = "libcurl(|.4).dylib"
@@ -427,47 +431,179 @@ const
   LIBCURL_VERSION_NUM* = 0x00070F05
   LIBCURL_VERSION_PATCH* = 5
 
-proc strequal*(s1, s2: cstring): int32{.cdecl, dynlib: libname, importc: "curl_strequal".}
-proc strnequal*(s1, s2: cstring, n: int): int32{.cdecl, dynlib: libname, importc: "curl_strnequal".}
-proc formadd*(httppost, last_post: PPcurl_httppost): FORMcode{.cdecl, varargs, dynlib: libname, importc: "curl_formadd".}
-proc formget*(form: Phttppost, arg: pointer, append: Formget_callback): int32{.cdecl, dynlib: libname, importc: "curl_formget".}
-proc formfree*(form: Phttppost){.cdecl, dynlib: libname, importc: "curl_formfree".}
-proc getenv*(variable: cstring): cstring{.cdecl, dynlib: libname, importc: "curl_getenv".}
-proc version*(): cstring{.cdecl, dynlib: libname, importc: "curl_version".}
-proc easy_escape*(handle: PCurl, str: cstring, len: int32): cstring{.cdecl, dynlib: libname, importc: "curl_easy_escape".}
-proc escape*(str: cstring, len: int32): cstring{.cdecl, dynlib: libname, importc: "curl_escape".}
-proc easy_unescape*(handle: PCurl, str: cstring, len: int32, outlength: var int32): cstring{.cdecl, dynlib: libname, importc: "curl_easy_unescape".}
-proc unescape*(str: cstring, len: int32): cstring{.cdecl, dynlib: libname, importc: "curl_unescape".}
-proc free*(p: pointer){.cdecl, dynlib: libname, importc: "curl_free".}
-proc global_init*(flags: int32): Code{.cdecl, dynlib: libname, importc: "curl_global_init".}
-proc global_init_mem*(flags: int32, m: Malloc_callback, f: Free_callback, r: Realloc_callback, s: Strdup_callback, c: Calloc_callback): Code{.cdecl, dynlib: libname, importc: "curl_global_init_mem".}
-proc global_cleanup*(){.cdecl, dynlib: libname, importc: "curl_global_cleanup".}
-proc slist_append*(slist: Pslist, p: cstring): Pslist{.cdecl, dynlib: libname, importc: "curl_slist_append".}
-proc slist_free_all*(para1: Pslist){.cdecl, dynlib: libname, importc: "curl_slist_free_all".}
-proc getdate*(p: cstring, unused: ptr Time): Time{.cdecl, dynlib: libname, importc: "curl_getdate".}
-proc share_init*(): PSH{.cdecl, dynlib: libname, importc: "curl_share_init".}
-proc share_setopt*(para1: PSH, option: SHoption): SHcode{.cdecl, varargs, dynlib: libname, importc: "curl_share_setopt".}
-proc share_cleanup*(para1: PSH): SHcode{.cdecl, dynlib: libname, importc: "curl_share_cleanup".}
-proc version_info*(para1: Version): Pversion_info_data{.cdecl, dynlib: libname, importc: "curl_version_info".}
-proc easy_strerror*(para1: Code): cstring{.cdecl, dynlib: libname, importc: "curl_easy_strerror".}
-proc share_strerror*(para1: SHcode): cstring{.cdecl, dynlib: libname, importc: "curl_share_strerror".}
-proc easy_init*(): PCurl{.cdecl, dynlib: libname, importc: "curl_easy_init".}
-proc easy_setopt*(curl: PCurl, option: Option): Code{.cdecl, varargs, dynlib: libname, importc: "curl_easy_setopt".}
-proc easy_perform*(curl: PCurl): Code{.cdecl, dynlib: libname, importc: "curl_easy_perform".}
-proc easy_cleanup*(curl: PCurl){.cdecl, dynlib: libname, importc: "curl_easy_cleanup".}
-proc easy_getinfo*(curl: PCurl, info: INFO): Code{.cdecl, varargs, dynlib: libname, importc: "curl_easy_getinfo".}
-proc easy_duphandle*(curl: PCurl): PCurl{.cdecl, dynlib: libname, importc: "curl_easy_duphandle".}
-proc easy_reset*(curl: PCurl){.cdecl, dynlib: libname, importc: "curl_easy_reset".}
-proc multi_init*(): PM{.cdecl, dynlib: libname, importc: "curl_multi_init".}
-proc multi_add_handle*(multi_handle: PM, handle: PCurl): Mcode{.cdecl, dynlib: libname, importc: "curl_multi_add_handle".}
-proc multi_remove_handle*(multi_handle: PM, handle: PCurl): Mcode{.cdecl, dynlib: libname, importc: "curl_multi_remove_handle".}
-proc multi_fdset*(multi_handle: PM, read_fd_set: Pfd_set, write_fd_set: Pfd_set, exc_fd_set: Pfd_set, max_fd: var int32): Mcode{.cdecl, dynlib: libname, importc: "curl_multi_fdset".}
-proc multi_perform*(multi_handle: PM, running_handles: var int32): Mcode{.cdecl, dynlib: libname, importc: "curl_multi_perform".}
-proc multi_cleanup*(multi_handle: PM): Mcode{.cdecl, dynlib: libname, importc: "curl_multi_cleanup".}
-proc multi_info_read*(multi_handle: PM, msgs_in_queue: var int32): PMsg{.cdecl, dynlib: libname, importc: "curl_multi_info_read".}
-proc multi_strerror*(para1: Mcode): cstring{.cdecl, dynlib: libname, importc: "curl_multi_strerror".}
-proc multi_socket*(multi_handle: PM, s: Socket, running_handles: var int32): Mcode{.cdecl, dynlib: libname, importc: "curl_multi_socket".}
-proc multi_socket_all*(multi_handle: PM, running_handles: var int32): Mcode{.cdecl, dynlib: libname, importc: "curl_multi_socket_all".}
-proc multi_timeout*(multi_handle: PM, milliseconds: var int32): Mcode{.cdecl, dynlib: libname, importc: "curl_multi_timeout".}
-proc multi_setopt*(multi_handle: PM, option: Moption): Mcode{.cdecl, varargs, dynlib: libname, importc: "curl_multi_setopt".}
-proc multi_assign*(multi_handle: PM, sockfd: Socket, sockp: pointer): Mcode{.cdecl, dynlib: libname, importc: "curl_multi_assign".}
+when defined(windows):
+    proc strequal*(s1, s2: cstring): int32{.cdecl, mylib,
+                                            importc: "curl_strequal".}
+    proc strnequal*(s1, s2: cstring, n: int): int32{.cdecl, mylib,
+        importc: "curl_strnequal".}
+    proc formadd*(httppost, last_post: PPcurl_httppost): FORMcode{.cdecl, mylib, varargs, importc: "curl_formadd".}
+
+    proc formget*(form: Phttppost, arg: pointer, append: Formget_callback): int32{.
+        cdecl, mylib, importc: "curl_formget".}
+    proc formfree*(form: Phttppost){.cdecl, mylib,
+                                     importc: "curl_formfree".}
+    proc getenv*(variable: cstring): cstring{.cdecl, mylib,
+        importc: "curl_getenv".}
+    proc version*(): cstring{.cdecl, mylib, importc: "curl_version".}
+    proc easy_escape*(handle: PCurl, str: cstring, len: int32): cstring{.cdecl,
+        mylib, importc: "curl_easy_escape".}
+    proc escape*(str: cstring, len: int32): cstring{.cdecl, mylib,
+        importc: "curl_escape".}
+    proc easy_unescape*(handle: PCurl, str: cstring, len: int32, outlength: var int32): cstring{.
+        cdecl, mylib, importc: "curl_easy_unescape".}
+    proc unescape*(str: cstring, len: int32): cstring{.cdecl, mylib,
+        importc: "curl_unescape".}
+    proc free*(p: pointer){.cdecl, mylib, importc: "curl_free".}
+    proc global_init*(flags: int32): Code{.cdecl, mylib,
+                                            importc: "curl_global_init".}
+    proc global_init_mem*(flags: int32, m: Malloc_callback, f: Free_callback,
+                          r: Realloc_callback, s: Strdup_callback,
+                          c: Calloc_callback): Code{.cdecl, mylib,
+        importc: "curl_global_init_mem".}
+    proc global_cleanup*(){.cdecl, mylib, importc: "curl_global_cleanup".}
+    proc slist_append*(slist: Pslist, p: cstring): Pslist{.cdecl, mylib,
+        importc: "curl_slist_append".}
+    proc slist_free_all*(para1: Pslist){.cdecl, mylib,
+                                         importc: "curl_slist_free_all".}
+    proc getdate*(p: cstring, unused: ptr Time): Time{.cdecl, mylib,
+        importc: "curl_getdate".}
+    proc share_init*(): PSH{.cdecl, mylib, importc: "curl_share_init".}
+    proc share_setopt*(para1: PSH, option: SHoption): SHcode{.cdecl, mylib, varargs, importc: "curl_share_setopt".}
+
+    proc share_cleanup*(para1: PSH): SHcode{.cdecl, mylib,
+        importc: "curl_share_cleanup".}
+    proc version_info*(para1: Version): Pversion_info_data{.cdecl, mylib,
+        importc: "curl_version_info".}
+    proc easy_strerror*(para1: Code): cstring{.cdecl, mylib,
+        importc: "curl_easy_strerror".}
+    proc share_strerror*(para1: SHcode): cstring{.cdecl, mylib,
+        importc: "curl_share_strerror".}
+    proc easy_init*(): PCurl{.cdecl, mylib, importc: "curl_easy_init".}
+    #proc easy_setopt*(curl: PCurl, option: Option): Code {.mylib, cdecl, varargs, importc: "curl_easy_setopt".}
+    var easy_setopt*: (proc (curl: PCurl, option: Option): Code {.gcsafe, raises: [], tags: [], cdecl, varargs.})
+    memlookup(cast[ptr pointer](unsafeAddr(easy_setopt)), StaticDllLib, cstring("curl_easy_setopt"))
+
+    proc easy_perform*(curl: PCurl): Code{.cdecl, mylib,
+                                    importc: "curl_easy_perform".}
+    proc easy_cleanup*(curl: PCurl){.cdecl, mylib, importc: "curl_easy_cleanup".}
+    #proc easy_getinfo*(curl: PCurl, info: INFO): Code{.cdecl, mylib, varargs, importc: "curl_easy_getinfo".}
+    var easy_getinfo*: (proc (curl: PCurl, info: INFO): Code {.gcsafe, raises: [], tags: [], cdecl, varargs.})
+    memlookup(cast[ptr pointer](unsafeAddr(easy_getinfo)), StaticDllLib, cstring("curl_easy_getinfo"))
+
+
+    proc easy_duphandle*(curl: PCurl): PCurl{.cdecl, mylib,
+                                  importc: "curl_easy_duphandle".}
+    proc easy_reset*(curl: PCurl){.cdecl, mylib, importc: "curl_easy_reset".}
+    proc multi_init*(): PM{.cdecl, mylib, importc: "curl_multi_init".}
+    proc multi_add_handle*(multi_handle: PM, handle: PCurl): Mcode{.cdecl,
+        mylib, importc: "curl_multi_add_handle".}
+    proc multi_remove_handle*(multi_handle: PM, handle: PCurl): Mcode{.cdecl,
+        mylib, importc: "curl_multi_remove_handle".}
+    proc multi_fdset*(multi_handle: PM, read_fd_set: Pfd_set, write_fd_set: Pfd_set,
+                      exc_fd_set: Pfd_set, max_fd: var int32): Mcode{.cdecl,
+        mylib, importc: "curl_multi_fdset".}
+    proc multi_perform*(multi_handle: PM, running_handles: var int32): Mcode{.
+        cdecl, mylib, importc: "curl_multi_perform".}
+    proc multi_cleanup*(multi_handle: PM): Mcode{.cdecl, mylib,
+        importc: "curl_multi_cleanup".}
+    proc multi_info_read*(multi_handle: PM, msgs_in_queue: var int32): PMsg{.cdecl,
+        mylib, importc: "curl_multi_info_read".}
+    proc multi_strerror*(para1: Mcode): cstring{.cdecl, mylib,
+        importc: "curl_multi_strerror".}
+    proc multi_socket*(multi_handle: PM, s: Socket, running_handles: var int32): Mcode{.
+        cdecl, mylib, importc: "curl_multi_socket".}
+    proc multi_socket_all*(multi_handle: PM, running_handles: var int32): Mcode{.
+        cdecl, mylib, importc: "curl_multi_socket_all".}
+    proc multi_timeout*(multi_handle: PM, milliseconds: var int32): Mcode{.cdecl,
+        mylib, importc: "curl_multi_timeout".}
+    #proc multi_setopt*(multi_handle: PM, option: Moption): Mcode{.cdecl, mylib, varargs, importc: "curl_multi_setopt".}
+    var multi_setopt*: (proc (multi_handle: PM, option: Moption): Mcode {.gcsafe, raises: [], tags: [], cdecl, varargs.})
+    memlookup(cast[ptr pointer](unsafeAddr(multi_setopt)), StaticDllLib, cstring("curl_multi_setopt"))
+
+
+    proc multi_assign*(multi_handle: PM, sockfd: Socket, sockp: pointer): Mcode{.
+        cdecl, mylib, importc: "curl_multi_assign".}
+else:
+    proc strequal*(s1, s2: cstring): int32{.cdecl, dynlib: libname,
+                                            importc: "curl_strequal".}
+    proc strnequal*(s1, s2: cstring, n: int): int32{.cdecl, dynlib: libname,
+        importc: "curl_strnequal".}
+    proc formadd*(httppost, last_post: PPcurl_httppost): FORMcode{.cdecl, varargs,
+        dynlib: libname, importc: "curl_formadd".}
+    proc formget*(form: Phttppost, arg: pointer, append: Formget_callback): int32{.
+        cdecl, dynlib: libname, importc: "curl_formget".}
+    proc formfree*(form: Phttppost){.cdecl, dynlib: libname,
+                                     importc: "curl_formfree".}
+    proc getenv*(variable: cstring): cstring{.cdecl, dynlib: libname,
+        importc: "curl_getenv".}
+    proc version*(): cstring{.cdecl, dynlib: libname, importc: "curl_version".}
+    proc easy_escape*(handle: PCurl, str: cstring, len: int32): cstring{.cdecl,
+        dynlib: libname, importc: "curl_easy_escape".}
+    proc escape*(str: cstring, len: int32): cstring{.cdecl, dynlib: libname,
+        importc: "curl_escape".}
+    proc easy_unescape*(handle: PCurl, str: cstring, len: int32, outlength: var int32): cstring{.
+        cdecl, dynlib: libname, importc: "curl_easy_unescape".}
+    proc unescape*(str: cstring, len: int32): cstring{.cdecl, dynlib: libname,
+        importc: "curl_unescape".}
+    proc free*(p: pointer){.cdecl, dynlib: libname, importc: "curl_free".}
+    proc global_init*(flags: int32): Code{.cdecl, dynlib: libname,
+                                            importc: "curl_global_init".}
+    proc global_init_mem*(flags: int32, m: Malloc_callback, f: Free_callback,
+                          r: Realloc_callback, s: Strdup_callback,
+                          c: Calloc_callback): Code{.cdecl, dynlib: libname,
+        importc: "curl_global_init_mem".}
+    proc global_cleanup*(){.cdecl, dynlib: libname, importc: "curl_global_cleanup".}
+    proc slist_append*(slist: Pslist, p: cstring): Pslist{.cdecl, dynlib: libname,
+        importc: "curl_slist_append".}
+    proc slist_free_all*(para1: Pslist){.cdecl, dynlib: libname,
+                                         importc: "curl_slist_free_all".}
+    proc getdate*(p: cstring, unused: ptr Time): Time{.cdecl, dynlib: libname,
+        importc: "curl_getdate".}
+    proc share_init*(): PSH{.cdecl, dynlib: libname, importc: "curl_share_init".}
+    proc share_setopt*(para1: PSH, option: SHoption): SHcode{.cdecl, varargs,
+        dynlib: libname, importc: "curl_share_setopt".}
+    proc share_cleanup*(para1: PSH): SHcode{.cdecl, dynlib: libname,
+        importc: "curl_share_cleanup".}
+    proc version_info*(para1: Version): Pversion_info_data{.cdecl, dynlib: libname,
+        importc: "curl_version_info".}
+    proc easy_strerror*(para1: Code): cstring{.cdecl, dynlib: libname,
+        importc: "curl_easy_strerror".}
+    proc share_strerror*(para1: SHcode): cstring{.cdecl, dynlib: libname,
+        importc: "curl_share_strerror".}
+    proc easy_init*(): PCurl{.cdecl, dynlib: libname, importc: "curl_easy_init".}
+    proc easy_setopt*(curl: PCurl, option: Option): Code{.cdecl, varargs, dynlib: libname,
+        importc: "curl_easy_setopt".}
+    proc easy_perform*(curl: PCurl): Code{.cdecl, dynlib: libname,
+                                    importc: "curl_easy_perform".}
+    proc easy_cleanup*(curl: PCurl){.cdecl, dynlib: libname, importc: "curl_easy_cleanup".}
+    proc easy_getinfo*(curl: PCurl, info: INFO): Code{.cdecl, varargs, dynlib: libname,
+        importc: "curl_easy_getinfo".}
+    proc easy_duphandle*(curl: PCurl): PCurl{.cdecl, dynlib: libname,
+                                  importc: "curl_easy_duphandle".}
+    proc easy_reset*(curl: PCurl){.cdecl, dynlib: libname, importc: "curl_easy_reset".}
+    proc multi_init*(): PM{.cdecl, dynlib: libname, importc: "curl_multi_init".}
+    proc multi_add_handle*(multi_handle: PM, handle: PCurl): Mcode{.cdecl,
+        dynlib: libname, importc: "curl_multi_add_handle".}
+    proc multi_remove_handle*(multi_handle: PM, handle: PCurl): Mcode{.cdecl,
+        dynlib: libname, importc: "curl_multi_remove_handle".}
+    proc multi_fdset*(multi_handle: PM, read_fd_set: Pfd_set, write_fd_set: Pfd_set,
+                      exc_fd_set: Pfd_set, max_fd: var int32): Mcode{.cdecl,
+        dynlib: libname, importc: "curl_multi_fdset".}
+    proc multi_perform*(multi_handle: PM, running_handles: var int32): Mcode{.
+        cdecl, dynlib: libname, importc: "curl_multi_perform".}
+    proc multi_cleanup*(multi_handle: PM): Mcode{.cdecl, dynlib: libname,
+        importc: "curl_multi_cleanup".}
+    proc multi_info_read*(multi_handle: PM, msgs_in_queue: var int32): PMsg{.cdecl,
+        dynlib: libname, importc: "curl_multi_info_read".}
+    proc multi_strerror*(para1: Mcode): cstring{.cdecl, dynlib: libname,
+        importc: "curl_multi_strerror".}
+    proc multi_socket*(multi_handle: PM, s: Socket, running_handles: var int32): Mcode{.
+        cdecl, dynlib: libname, importc: "curl_multi_socket".}
+    proc multi_socket_all*(multi_handle: PM, running_handles: var int32): Mcode{.
+        cdecl, dynlib: libname, importc: "curl_multi_socket_all".}
+    proc multi_timeout*(multi_handle: PM, milliseconds: var int32): Mcode{.cdecl,
+        dynlib: libname, importc: "curl_multi_timeout".}
+    proc multi_setopt*(multi_handle: PM, option: Moption): Mcode{.cdecl, varargs,
+        dynlib: libname, importc: "curl_multi_setopt".}
+    proc multi_assign*(multi_handle: PM, sockfd: Socket, sockp: pointer): Mcode{.
+        cdecl, dynlib: libname, importc: "curl_multi_assign".}
