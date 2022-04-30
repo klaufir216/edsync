@@ -21,7 +21,7 @@ import retry
 import std/strformat
 import humanbytes
 
-const version = "v1.4"
+const version = "v1.5"
 
 const catalogFilename = "edsync-catalog.sha3"
 const signatureFilename = "edsync-catalog.sig"
