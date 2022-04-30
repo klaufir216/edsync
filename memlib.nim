@@ -849,6 +849,23 @@ proc myGetProcAddress(hModule: HMODULE, lpProcName: LPCSTR): FARPROC {.stdcall, 
         if hModule == memLibs[i][HANDLE]:
           return memLibs[i].symAddr(lpProcName)
 
+###
+# BOOL WINAPI GetModuleHandleExW(DWORD dwFlags, LPCWSTR lpModuleName, HMODULE *phModule)
+proc originalGetModuleHandleExW(dwFlags: DWORD, lpModuleName: LPCWSTR, phModule: ptr HMODULE): WINBOOL {.stdcall, dynlib: "kernel32", importc: "GetModuleHandleExW".}
+
+proc myGetModuleHandleExW(dwFlags: DWORD, lpModuleName: LPCWSTR, phModule: ptr HMODULE): WINBOOL {.stdcall, minhook: originalGetModuleHandleExW.} = 
+    # source: https://github.com/maueroats/racket/commit/d81f6b41b57d46e4fedb67513a815bdd29e8fb1e
+    
+    # if ((dwFlags & GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS) && (phModule != NULL)) {
+    #   *phModule = GetModuleHandle(NULL);
+    #   return TRUE;
+    # }
+    if (((dwFlags and GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS) != 0) and (phModule != nil)):
+        phModule[] = GetModuleHandle(NULL)
+        return 1
+    return originalGetModuleHandleExW(dwFlags, lpModuleName, phModule)
+###
+
 proc unhook*(lib: MemoryModule) {.raises: [].} =
   ## Removes the hooks.
   assert lib != nil
@@ -863,8 +880,9 @@ proc unhook*(lib: MemoryModule) {.raises: [].} =
 
     if hookEnabled:
       try:
-        queueDisableHook(LdrLoadDll)
+        #queueDisableHook(LdrLoadDll)
         queueDisableHook(GetProcAddress)
+        queueDisableHook(originalGetModuleHandleExW)
         applyQueued()
       except: discard
       hookEnabled = false
@@ -874,7 +892,6 @@ proc hook*(lib: MemoryModule, name: string) {.raises: [LibraryError].} =
   ## Following requests will be redirected to the memory module
   assert lib != nil
   lib.unhook()
-
   let wstr = string +$name
   lib.name = createShared(char, wstr.len)[LPCWSTR]
   if lib.name == nil:
@@ -885,8 +902,9 @@ proc hook*(lib: MemoryModule, name: string) {.raises: [LibraryError].} =
   withLock(gLock):
     if not hookEnabled:
       try:
-        queueEnableHook(LdrLoadDll)
+        #queueEnableHook(LdrLoadDll)
         queueEnableHook(GetProcAddress)
+        queueEnableHook(originalGetModuleHandleExW)
         applyQueued()
       except: discard
       hookEnabled = true
