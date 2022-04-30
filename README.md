@@ -6,7 +6,7 @@
 
 * 256-bit SHA3 file hashes
 
-* Minimal dependencies: The Windows build needs libcurl.dll. On Linux the only dependencies are `libcurl` and `openssl`.
+* Minimal dependencies: The Windows build needs system dlls only. On Linux the only dependencies are `libcurl` and `openssl`.
 
 * Stores files in a catalog where each line contains a filename and a SHA3 hash. Catalog files are compatible with Total Commander: hitting `enter` on a `.sha3` catalog file checks the hashes.
 
