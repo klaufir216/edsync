@@ -20,6 +20,8 @@ import ncurl
 import retry
 import std/strformat
 import humanbytes
+import kbhit
+import std/times
 
 const version = "v1.5"
 
@@ -158,6 +160,7 @@ proc verifyStringSignature(s: string, sig: Signature): bool =
     return ed25519.verify(catalogHash, sig, pubkey)
 
 iterator iterateCatalog(catalogContent: string): tuple[hash: string, path: string] =
+    var isVerbose: bool = false
     var lines = catalogContent.split("\n")
     for line in lines:
         var temp: seq[string] = line.split(" *", maxsplit=1)
@@ -166,25 +169,27 @@ iterator iterateCatalog(catalogContent: string): tuple[hash: string, path: strin
         var catalogHash = temp[0]
         var path = temp[1]
         if os.isAbsolute(path):
-            stderr.writeLine("Catalog: Skipping absolute path: " & path)
+            if isVerbose:
+                stderr.writeLine("Catalog: Skipping absolute path: " & path)
             continue
         if ".." in path:
-            stderr.writeLine("Catalog: Skipping path with '..': " & path)
+            if isVerbose:
+                stderr.writeLine("Catalog: Skipping path with '..': " & path)
             continue
         yield (catalogHash, path)
 
-proc verifyLocalCatalog(): bool = 
-    result = true
-    var signature = loadSignatureFile()
-    var catalogContent = readFile(catalogFilename)
-    if not verifyStringSignature(catalogContent, signature):
-        stderr.writeLine("FAILURE: Signature verification error.")
-        result = false
-    
-    for hash, path in iterateCatalog(catalogContent):
-        if hash != calculateFileSha3(path):
-            stderr.writeLine("FAILURE: Hash mismatch for file: '" & path & "'")
-            result = false
+#proc verifyLocalCatalog(isVerbose: bool): bool = 
+#    result = true
+#    var signature = loadSignatureFile()
+#    var catalogContent = readFile(catalogFilename)
+#    if not verifyStringSignature(catalogContent, signature):
+#        stderr.writeLine("FAILURE: Signature verification error.")
+#        result = false
+#    
+#    for hash, path in iterateCatalog(catalogContent, isVerbose):
+#        if hash != calculateFileSha3(path):
+#            stderr.writeLine("FAILURE: Hash mismatch for file: '" & path & "'")
+#            result = false
 
 proc getRemoteUrl(path: string): string =
     return $(parseUri(loadSourceJsonUrl()) / path)
@@ -208,16 +213,6 @@ proc downloadRemoteFile(remoteHash: string, path: string): Option[string] =
     if fileExists(pendingPath) and calculateFileSha3(pendingPath) == remoteHash:
         echo("Already downloaded: " & path)
     else:
-        # echo("Downloading: " & path)
-        #var pendingContent = puppy.fetch(getRemoteUrl(path), progressCallback=progressCallback)
-        #echo ""
-        #var pendingFile: File = open(pendingPath, fmWrite)
-        #pendingFile.write(pendingContent)
-        #close(pendingFile)
-        #retryVoid[CurlError](proc() = ncurlDownload(url, output_filename), 
-        #    max_tries=10, sleep_time_sec=5)
-        #var url = getRemoteUrl(path)
-        #let url_filename = url.split('/')[^1]
         proc onProgress(current:int, total: int) =
             if total > 0:
                 var msg = fmt"{path}: {humanBytes(current)} / {humanBytes(total)}"
@@ -225,7 +220,7 @@ proc downloadRemoteFile(remoteHash: string, path: string): Option[string] =
         retryVoid[CurlError](proc() = ncurlDownload(getRemoteUrl(path), pendingPath, onProgress), 
             max_tries=10, sleep_time_sec=5)
 
-        stderr.write("\n")
+        stderr.write("\r")
     var downloadedFileHash = calculateFileSha3(pendingPath)
     if downloadedFileHash != remoteHash:
         stderr.writeLine("Hash mismatch for " & path)
@@ -259,42 +254,37 @@ proc waitFilesWriteable(paths: seq[string]): bool =
         waitTimeSeconds -= retryIntervalSeconds
     return false
 
-proc runUpdate(): int = 
+proc runUpdate(isVerbose: bool): int = 
     var url = getRemoteUrl(catalogFilename)
-    echo("Checking update at " & url)
+    if isVerbose:
+        echo("Checking update at " & url)
+    else:
+        echo("Checking updates...")
     #var remoteCatalogContent = puppy.fetch(url)
     var remoteCatalogContent = retry[CurlError, string](proc():string = return ncurlFetch(url), 
             max_tries=10, sleep_time_sec=5)
-    echo("remote catalog content")
-    echo(remoteCatalogContent)
-    #var remoteSignatureConent = puppy.fetch(getRemoteUrl(signatureFilename))
     var remoteSignatureConent = retry[CurlError, string](proc():string = return ncurlFetch(getRemoteUrl(signatureFilename)), 
             max_tries=10, sleep_time_sec=5)
     var remoteSignature = loadSignatureString(remoteSignatureConent)
     if not verifyStringSignature(remoteCatalogContent, remoteSignature):
         stderr.writeLine(url & " signature verification failed")
-        quit(-1)
-    var updatedFilePaths: seq[string]
+        return -1
+    var pendingUpdates: seq[string]
     for remoteHash, path in iterateCatalog(remoteCatalogContent):
         var filePending = downloadRemoteFile(remoteHash, path)
         if filePending.isSome():
-            updatedFilePaths.add(filePending.get())
+            pendingUpdates.add(filePending.get())
 
-    if len(updatedFilePaths) == 0:
-        echo("All files up-to-date. Exiting")
-        return 0
-
-    if not waitFilesWriteable(updatedFilePaths):
+    if len(pendingUpdates) > 0 and not waitFilesWriteable(pendingUpdates):
         stderr.writeLine("Exiting due to locked files. Update not applied, no files changed.")
+        return -1
 
-    for updatedFilePath in updatedFilePaths:
+    for updatedFilePath in pendingUpdates:
         var pendingPath = getPendingPath(updatedFilePath)
         os.moveFile(pendingPath, updatedFilePath)
 
-    var catalogFile: File = open(catalogFilename, fmWrite)
-    defer: close(catalogFile)
-    catalogFile.write(remoteCatalogContent)
-    saveSignature(remoteSignature)
+    # some extra spaces to overwrite leftover characters from progress print
+    echo("All files are up to date.                                                                                                        ")
     return 0
 
 proc cmdLineUpdateCatalog(): int =
@@ -318,12 +308,6 @@ proc cmdLineKeygen(): int =
     echo("Created " & path)
     return 0
 
-proc cmdLineVerify(): int =
-    if verifyLocalCatalog():
-        echo "SUCCESS: Local catalog signature & content verified."
-        return 0
-    return -1
-
 proc cmdLineMakeSourceJson(url: string): int =
     var kp = loadEdsyncKeypair(getKeypairPath())
     saveSourceJson(kp.publicKey, url)
@@ -331,10 +315,9 @@ proc cmdLineMakeSourceJson(url: string): int =
     return 0
 
 when isMainModule:
-    if len(commandLineParams()) == 0:
-        quit(runUpdate())
     var p = newParser:
         help("edsync " & version)
+        flag("-v", "--verbose")
         command("update-catalog"):
             help("Create " & catalogFilename & " & " & signatureFilename)
             run:
@@ -348,14 +331,17 @@ when isMainModule:
             help("Create public & private keys at " & getKeypairPath())
             run:
                 quit(cmdLineKeygen())
-        command("verify"):
-            help("Verify files based on " & catalogFilename)
-            run:
-                quit(cmdLineVerify())
         command("update"):
             help("[DEFAULT] Update local files based on " & edsyncSourceFilename)
+            flag("-v", "--verbose")
             run:
-                quit(runUpdate())
+                quit(runUpdate(opts.verbose))
+        run:
+            var updateResult = runUpdate(opts.verbose)
+            var startTime = epochTime()
+            while startTime + 5 > epochTime() and kbhit() == 0:
+                sleep(1)
+            quit(updateResult)
     try:
         p.run(commandLineParams())
     except UsageError as e:
