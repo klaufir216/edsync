@@ -316,8 +316,6 @@ proc cmdLineMakeSourceJson(url: string): int =
 
 when isMainModule:
     var p = newParser:
-        help("edsync " & version)
-        flag("-v", "--verbose")
         command("update-catalog"):
             help("Create " & catalogFilename & " & " & signatureFilename)
             run:
@@ -336,14 +334,15 @@ when isMainModule:
             flag("-v", "--verbose")
             run:
                 quit(runUpdate(opts.verbose))
-        run:
-            var updateResult = runUpdate(opts.verbose)
+    try:
+        if len(commandLineParams()) == 0:
+            var updateResult = runUpdate(false)
             var startTime = epochTime()
             while startTime + 5 > epochTime() and getPressedKey() == -1:
                 sleep(1)
             quit(updateResult)
-    try:
-        p.run(commandLineParams())
+        else:
+            p.run(commandLineParams())
     except UsageError as e:
         stderr.writeLine getCurrentExceptionMsg()
         quit(-1)
