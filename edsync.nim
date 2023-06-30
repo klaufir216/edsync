@@ -20,7 +20,7 @@ import ncurl
 import retry
 import std/strformat
 import humanbytes
-import kbhit
+import keys
 import std/times
 
 const version = "v1.5"
@@ -339,7 +339,7 @@ when isMainModule:
         run:
             var updateResult = runUpdate(opts.verbose)
             var startTime = epochTime()
-            while startTime + 5 > epochTime() and kbhit() == 0:
+            while startTime + 5 > epochTime() and getPressedKey() == -1:
                 sleep(1)
             quit(updateResult)
     try:
