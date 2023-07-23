@@ -132,7 +132,7 @@ proc calculateStringSha3(s: string): string =
 proc checkKeepFile(ignoreRules: seq[string], filename: string): bool =
     result = true
     for rule in ignoreRules:
-        var r = rule.replace("\r", "")
+        var r = rule.strip()
         if r.startsWith("!") and filename.matches(r[1 .. ^1]):
             return true
         if filename.matches(r):
