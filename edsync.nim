@@ -35,7 +35,8 @@ const filesWritableCheckTimeout = 60
 
 proc getIgnoreRules(): seq[string] =
     if fileExists(edsyncIgnoreFilename):
-        return readFile(edsyncIgnoreFilename).strip().split('\n')
+        result = readFile(edsyncIgnoreFilename).strip().split('\n')
+        return result
     return @[]
 
 proc getExecutableFilename(): string =
@@ -93,7 +94,7 @@ proc saveSourceJson(pk: PublicKey, url: string) =
     jobj.add("public_key", newJString(base64.encode(pk)))
     jobj.add("url", newJString(url))
     edsyncSource.write($jobj)
-    
+
 proc loadEdsyncKeypair(filename: string): KeyPair =
     var kp: KeyPair
     var jobj = parseJson(readFile(filename))
@@ -128,28 +129,38 @@ proc calculateStringSha3(s: string): string =
     state.update(s)
     return $state.final()
 
+proc checkKeepFile(ignoreRules: seq[string], filename: string): bool =
+    result = true
+    for rule in ignoreRules:
+        if rule.startsWith("!") and filename.matches(rule[1 .. ^1]):
+            return true
+        if filename.matches(rule):
+            result = false
+
 proc createCatalog(ignoreRules: seq[string]): int =
     result = 0
     var catalogFile: File = open(catalogFilename, fmWrite)
     defer: close(catalogFile)
     for filenameConst in os.walkDirRec("./"):
         var filename: string = filenameConst
-        filename = filename.replace("\\", "/")
         removePrefix(filename, "./")
-        if any(ignoreRules, proc (rule: string): bool = filename.matches(rule)):
-            echo("Ignored : " & filename)
-            continue
+        removePrefix(filename, r".\")
         if filename == catalogFilename or
            filename == edsyncSourceFilename or
+           filename == edsyncIgnoreFilename or
            filename == signatureFilename or
            filename == getExecutableFilename():
             continue
+        if not checkKeepFile(ignoreRules, filename):
+            echo("Ignored : " & filename.replace("\\", "/"))
+            continue
+        filename = filename.replace("\\", "/")
         var fileHash = calculateFileSha3(filename)
         catalogFile.write(fileHash & " *" & filename & "\n")
         echo("Added   : " & filename)
         result += 1
 
-proc signCatalog(kp: KeyPair) = 
+proc signCatalog(kp: KeyPair) =
     var catalogHash = calculateFileSha3(catalogFilename)
     var sig = ed25519.sign(catalogHash, kp)
     saveSignature(sig)
@@ -178,14 +189,14 @@ iterator iterateCatalog(catalogContent: string): tuple[hash: string, path: strin
             continue
         yield (catalogHash, path)
 
-#proc verifyLocalCatalog(isVerbose: bool): bool = 
+#proc verifyLocalCatalog(isVerbose: bool): bool =
 #    result = true
 #    var signature = loadSignatureFile()
 #    var catalogContent = readFile(catalogFilename)
 #    if not verifyStringSignature(catalogContent, signature):
 #        stderr.writeLine("FAILURE: Signature verification error.")
 #        result = false
-#    
+#
 #    for hash, path in iterateCatalog(catalogContent, isVerbose):
 #        if hash != calculateFileSha3(path):
 #            stderr.writeLine("FAILURE: Hash mismatch for file: '" & path & "'")
@@ -217,7 +228,7 @@ proc downloadRemoteFile(remoteHash: string, path: string): Option[string] =
             if total > 0:
                 var msg = fmt"{path}: {humanBytes(current)} / {humanBytes(total)}"
                 stderr.write(fmt"{msg:<79}" & "\r")
-        retryVoid[CurlError](proc() = ncurlDownload(getRemoteUrl(path), pendingPath, onProgress), 
+        retryVoid[CurlError](proc() = ncurlDownload(getRemoteUrl(path), pendingPath, onProgress),
             max_tries=10, sleep_time_sec=5)
 
         stderr.write("\r")
@@ -254,16 +265,16 @@ proc waitFilesWriteable(paths: seq[string]): bool =
         waitTimeSeconds -= retryIntervalSeconds
     return false
 
-proc runUpdate(isVerbose: bool): int = 
+proc runUpdate(isVerbose: bool): int =
     var url = getRemoteUrl(catalogFilename)
     if isVerbose:
         echo("Checking update at " & url)
     else:
         echo("Checking updates...")
     #var remoteCatalogContent = puppy.fetch(url)
-    var remoteCatalogContent = retry[CurlError, string](proc():string = return ncurlFetch(url), 
+    var remoteCatalogContent = retry[CurlError, string](proc():string = return ncurlFetch(url),
             max_tries=10, sleep_time_sec=5)
-    var remoteSignatureConent = retry[CurlError, string](proc():string = return ncurlFetch(getRemoteUrl(signatureFilename)), 
+    var remoteSignatureConent = retry[CurlError, string](proc():string = return ncurlFetch(getRemoteUrl(signatureFilename)),
             max_tries=10, sleep_time_sec=5)
     var remoteSignature = loadSignatureString(remoteSignatureConent)
     if not verifyStringSignature(remoteCatalogContent, remoteSignature):
