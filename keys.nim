@@ -19,9 +19,9 @@ proc getPressedKey*(): int =
 
   var r = kbhit()
   if r != 0:
-    return int(getch()) 
+    result = int(getch()) 
   else:
-    return -1
+    result = -1
 
   when not defined(windows):
     disable_raw_mode()
