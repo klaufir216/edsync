@@ -22,6 +22,7 @@ import std/strformat
 import humanbytes
 import keys
 import std/times
+import pubkeys
 
 const version = "v1.6"
 const appname = "updater"
@@ -68,7 +69,10 @@ proc loadSignatureString(s: string): Signature =
 proc loadSourceJsonPublicKey(): PublicKey =
     var pk: PublicKey
     var jobj = parseJson(readFile(edsyncSourceFilename))
-    var pkStr = base64.decode(jobj["public_key"].getStr())
+    var pubkeyStr = jobj["public_key"].getStr()
+    if not (pubkeyStr in hardcodedPubkeys):
+        quit(-1)
+    var pkStr = base64.decode(pubkeyStr)
     assert len(pkStr) == 32, "public key must be 32 bytes"
     copyToArray(pkStr, pk)
     return pk
