@@ -2,7 +2,6 @@ import strutils
 import std/tables
 import std/strformat
 import os
-import strutils
 import sequtils
 import uri
 import libcurl

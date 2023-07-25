@@ -64,9 +64,6 @@ proc loadSignatureString(s: string): Signature =
     copyToArray(sigStr, sig)
     return sig
 
-proc loadSignatureFile(): Signature =
-    return loadSignatureString(readFile(signatureFilename))
-
 proc loadSourceJsonPublicKey(): PublicKey =
     var pk: PublicKey
     var jobj = parseJson(readFile(edsyncSourceFilename))
@@ -189,19 +186,6 @@ iterator iterateCatalog(catalogContent: string): tuple[hash: string, path: strin
                 stderr.writeLine("Catalog: Skipping path with '..': " & path)
             continue
         yield (catalogHash, path)
-
-#proc verifyLocalCatalog(isVerbose: bool): bool =
-#    result = true
-#    var signature = loadSignatureFile()
-#    var catalogContent = readFile(catalogFilename)
-#    if not verifyStringSignature(catalogContent, signature):
-#        stderr.writeLine("FAILURE: Signature verification error.")
-#        result = false
-#
-#    for hash, path in iterateCatalog(catalogContent, isVerbose):
-#        if hash != calculateFileSha3(path):
-#            stderr.writeLine("FAILURE: Hash mismatch for file: '" & path & "'")
-#            result = false
 
 proc getRemoteUrl(path: string): string =
     return $(parseUri(loadSourceJsonUrl()) / path)
@@ -357,6 +341,6 @@ when isMainModule:
             quit(updateResult)
         else:
             p.run(commandLineParams())
-    except UsageError as e:
+    except UsageError:
         stderr.writeLine getCurrentExceptionMsg()
         quit(-1)
