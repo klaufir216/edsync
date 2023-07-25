@@ -209,7 +209,7 @@ proc getRemoteUrl(path: string): string =
 proc getPendingPath(path: string): string =
     path & pendingPathPostfix
 
-proc downloadRemoteFile(remoteHash: string, path: string): Option[string] =
+proc downloadRemoteFile(remoteHash: string, path: string, isVerbose: bool): Option[string] =
     #proc progressCallback(bytesRead: int, bytesTotal: int) =
     #    stdout.write("\r" & $path & ": " & $bytesRead & " / " & $bytesTotal)
 
@@ -223,7 +223,8 @@ proc downloadRemoteFile(remoteHash: string, path: string): Option[string] =
 
     # if pendingPath already exists; check hash; only download if needed
     if fileExists(pendingPath) and calculateFileSha3(pendingPath) == remoteHash:
-        echo("Already downloaded: " & path)
+        if isVerbose:
+            echo("Already downloaded: " & path)
     else:
         proc onProgress(current:int, total: int) =
             if total > 0:
@@ -283,7 +284,7 @@ proc runUpdate(isVerbose: bool): int =
         return -1
     var pendingUpdates: seq[string]
     for remoteHash, path in iterateCatalog(remoteCatalogContent):
-        var filePending = downloadRemoteFile(remoteHash, path)
+        var filePending = downloadRemoteFile(remoteHash, path, isVerbose)
         if filePending.isSome():
             pendingUpdates.add(filePending.get())
 
