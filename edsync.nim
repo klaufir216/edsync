@@ -23,7 +23,7 @@ import humanbytes
 import keys
 import std/times
 
-const version = "v1.5"
+const version = "v1.6"
 
 const catalogFilename = "edsync-catalog.sha3"
 const signatureFilename = "edsync-catalog.sig"
@@ -329,6 +329,7 @@ proc cmdLineMakeSourceJson(url: string): int =
 
 when isMainModule:
     var p = newParser:
+        help("edsync " & version & ": simple http file sync")
         command("update-catalog"):
             help("Create " & catalogFilename & " & " & signatureFilename)
             run:
