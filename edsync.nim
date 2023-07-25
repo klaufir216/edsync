@@ -24,10 +24,11 @@ import keys
 import std/times
 
 const version = "v1.6"
+const appname = "updater"
 
-const catalogFilename = "edsync-catalog.sha3"
-const signatureFilename = "edsync-catalog.sig"
-const edsyncSourceFilename = "edsync-source.json"
+const catalogFilename = appname & "-catalog.sha3"
+const signatureFilename = appname & "-catalog.sig"
+const edsyncSourceFilename = appname & "-source.json"
 const edsyncSignerKeypairFilename = ".edsync-signer-keypair"
 const edsyncIgnoreFilename = ".edsyncignore"
 const pendingPathPostfix = ".edsync-pending"
