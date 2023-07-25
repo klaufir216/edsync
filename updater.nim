@@ -71,6 +71,8 @@ proc loadSourceJsonPublicKey(): PublicKey =
     var jobj = parseJson(readFile(edsyncSourceFilename))
     var pubkeyStr = jobj["public_key"].getStr()
     if not (pubkeyStr in hardcodedPubkeys):
+        echo "error: public key mismatch"
+        sleep(5000)
         quit(-1)
     var pkStr = base64.decode(pubkeyStr)
     assert len(pkStr) == 32, "public key must be 32 bytes"
