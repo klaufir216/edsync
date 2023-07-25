@@ -239,7 +239,7 @@ proc ncurlDownload*(url: string, output_filename: string, onProgress: proc(curre
         # hack: when the file is complete ignore 416 (unsatisfiable range) on a retry
         if e.msg == "http code 416":
             return
-        raise
+        raise newException(CurlError, $url & ": " & e.msg)
 
 proc ncurlFetch*(url: string): string =
     var r: string = ""
