@@ -175,9 +175,10 @@ proc verifyStringSignature(s: string, sig: Signature): bool =
     var pubkey = loadSourceJsonPublicKey()
     return ed25519.verify(catalogHash, sig, pubkey)
 
-iterator iterateCatalog(catalogContent: string): tuple[hash: string, path: string] =
+iterator iterateCatalog(catalogContent: string): tuple[hash: string, path: string, index: int, total: int] =
     var isVerbose: bool = false
     var lines = catalogContent.split("\n")
+    var items = newSeq[tuple[hash: string, path: string]]()
     for line in lines:
         var temp: seq[string] = line.split(" *", maxsplit=1)
         if len(temp) != 2:
@@ -192,7 +193,13 @@ iterator iterateCatalog(catalogContent: string): tuple[hash: string, path: strin
             if isVerbose:
                 stderr.writeLine("Catalog: Skipping path with '..': " & path)
             continue
-        yield (catalogHash, path)
+        items.add((catalogHash, path))
+        #yield (catalogHash, path)
+    var index = 0
+    var total = len(items)
+    for (catalogHash, path) in items:
+        yield (catalogHash, path, index, total)
+        index += 1
 
 proc getRemoteUrl(path: string): string =
     return $(parseUri(loadSourceJsonUrl()) / path)
@@ -200,7 +207,7 @@ proc getRemoteUrl(path: string): string =
 proc getPendingPath(path: string): string =
     path & pendingPathPostfix
 
-proc downloadRemoteFile(remoteHash: string, path: string, isVerbose: bool): Option[string] =
+proc downloadRemoteFile(remoteHash: string, path: string, currentFile: int, totalFiles: int, isVerbose: bool): Option[string] =
     #proc progressCallback(bytesRead: int, bytesTotal: int) =
     #    stdout.write("\r" & $path & ": " & $bytesRead & " / " & $bytesTotal)
 
@@ -217,9 +224,10 @@ proc downloadRemoteFile(remoteHash: string, path: string, isVerbose: bool): Opti
         if isVerbose:
             echo("Already downloaded: " & path)
     else:
-        proc onProgress(current:int, total: int) =
-            if total > 0:
-                var msg = fmt"{path}: {humanBytes(current)} / {humanBytes(total)}"
+        proc onProgress(currentBytes:int, totalBytes: int) =
+            if totalBytes > 0:
+                # [3 of 61] *filename* 17.23 MB / 149.42 MB
+                var msg = fmt"[{currentFile+1} of {totalFiles}] {path} {humanBytes(currentBytes)} / {humanBytes(totalBytes)}"
                 stderr.write(fmt"{msg:<79}" & "\r")
         retryVoid[CurlError](proc() = ncurlDownload(getRemoteUrl(path), pendingPath, onProgress),
             max_tries=10, sleep_time_sec=5)
@@ -274,8 +282,8 @@ proc runUpdate(isVerbose: bool): int =
         stderr.writeLine(url & " signature verification failed")
         return -1
     var pendingUpdates: seq[string]
-    for remoteHash, path in iterateCatalog(remoteCatalogContent):
-        var filePending = downloadRemoteFile(remoteHash, path, isVerbose)
+    for remoteHash, path, index, total in iterateCatalog(remoteCatalogContent):
+        var filePending = downloadRemoteFile(remoteHash, path, index, total, isVerbose)
         if filePending.isSome():
             pendingUpdates.add(filePending.get())
 
