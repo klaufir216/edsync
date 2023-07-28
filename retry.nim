@@ -11,6 +11,7 @@ proc retryVoid*[T](f: proc(): void, max_tries: int, sleep_time_sec: int) =
             var verb = "retrying"
             if n_tries >= max_tries:
                 verb = "giving up"
+            stderr.writeLine("")
             stderr.writeLine("error: " & e.msg & ". " & verb & " (" & $n_tries & "/" & $max_tries & ")")
             if n_tries >= max_tries:
                 return
@@ -27,6 +28,7 @@ proc retry*[T,V](f: proc(): V, max_tries: int, sleep_time_sec: int):V =
             var verb = "retrying"
             if n_tries >= max_tries:
                 verb = "giving up"
+            stderr.writeLine("")
             stderr.writeLine("error: " & e.msg & ". " & verb & " (" & $n_tries & "/" & $max_tries & ")")
             if n_tries >= max_tries:
                 return result

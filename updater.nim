@@ -23,6 +23,7 @@ import humanbytes
 import keys
 import std/times
 import pubkeys
+import terminfo
 
 const version = "v1.6"
 const appname = "updater"
@@ -34,6 +35,16 @@ const edsyncSignerKeypairFilename = ".edsync-signer-keypair"
 const edsyncIgnoreFilename = ".edsyncignore"
 const pendingPathPostfix = ".edsync-pending"
 const filesWritableCheckTimeout = 60
+
+proc TermPrint(msg: string) =
+    var fillWidth = get_term_width() - 1
+    if fillWidth > 0:
+        var msgTruncated: string
+        if len(msg) > fillWidth:
+            msgTruncated = msg[0 .. fillWidth-1]
+        else:
+            msgTruncated = msg
+        stderr.write(msgTruncated & repeat(' ', fillWidth - len(msgTruncated)) & "\r")
 
 proc getIgnoreRules(): seq[string] =
     if fileExists(edsyncIgnoreFilename):
@@ -228,13 +239,13 @@ proc downloadRemoteFile(remoteHash: string, path: string, currentFile: int, tota
             if totalBytes > 0:
                 # [3 of 61] *filename* 17.23 MB / 149.42 MB
                 var msg = fmt"[{currentFile+1} of {totalFiles}] {path} {humanBytes(currentBytes)} / {humanBytes(totalBytes)}"
-                stderr.write(fmt"{msg:<79}" & "\r")
+                TermPrint(msg)
         retryVoid[CurlError](proc() = ncurlDownload(getRemoteUrl(path), pendingPath, onProgress),
             max_tries=10, sleep_time_sec=5)
 
-        stderr.write("\r")
     var downloadedFileHash = calculateFileSha3(pendingPath)
     if downloadedFileHash != remoteHash:
+        stderr.writeLine("")
         stderr.writeLine("Hash mismatch for " & path)
         stderr.writeLine("  remote catalog: " & remoteHash)
         stderr.writeLine("  downloaded    : " & downloadedFileHash)
@@ -260,6 +271,7 @@ proc waitFilesWriteable(paths: seq[string]): bool =
         var unwritablePaths: seq[string] = getUnwritablePaths(paths)
         if len(unwritablePaths) == 0:
             return true
+        stderr.writeLine("")
         stderr.writeLine("locked files: " & $unwritablePaths)
         stderr.writeLine("   retring in " & $retryIntervalSeconds & " seconds")
         sleep(1000 * retryIntervalSeconds)
@@ -271,7 +283,7 @@ proc runUpdate(isVerbose: bool): int =
     if isVerbose:
         echo("Checking update at " & url)
     else:
-        echo("Checking updates...")
+        stderr.writeLine("Checking updates...")
     #var remoteCatalogContent = puppy.fetch(url)
     var remoteCatalogContent = retry[CurlError, string](proc():string = return ncurlFetch(url),
             max_tries=10, sleep_time_sec=5)
@@ -288,6 +300,7 @@ proc runUpdate(isVerbose: bool): int =
             pendingUpdates.add(filePending.get())
 
     if len(pendingUpdates) > 0 and not waitFilesWriteable(pendingUpdates):
+        stderr.writeLine("")
         stderr.writeLine("Exiting due to locked files. Update not applied, no files changed.")
         return -1
 
@@ -295,8 +308,8 @@ proc runUpdate(isVerbose: bool): int =
         var pendingPath = getPendingPath(updatedFilePath)
         os.moveFile(pendingPath, updatedFilePath)
 
-    # some extra spaces to overwrite leftover characters from progress print
-    echo("All files are up to date.                                                                                                        ")
+    stderr.writeLine("")
+    stderr.writeLine("All files are up to date.")
     return 0
 
 proc cmdLineUpdateCatalog(): int =
@@ -306,24 +319,24 @@ proc cmdLineUpdateCatalog(): int =
         return -1
     var kp = loadEdsyncKeypair(getKeypairPath())
     var nItems = createCatalog(getIgnoreRules())
-    echo("Created catalog file: " & catalogFilename & " with " & $nItems & " files.")
+    stderr.writeLine("Created catalog file: " & catalogFilename & " with " & $nItems & " files.")
     signCatalog(kp)
-    echo("Signed catalog file: " & signatureFilename)
+    stderr.writeLine("Signed catalog file: " & signatureFilename)
     return 0
 
 proc cmdLineKeygen(): int =
     var path = getKeypairPath()
     if fileExists(path):
-        echo(path & " already exists. Aborting.")
+        stderr.writeLine(path & " already exists. Aborting.")
         return -1
     saveEdsyncKeypair(genKeypair(), path)
-    echo("Created " & path)
+    stderr.writeLine("Created " & path)
     return 0
 
 proc cmdLineMakeSourceJson(url: string): int =
     var kp = loadEdsyncKeypair(getKeypairPath())
     saveSourceJson(kp.publicKey, url)
-    echo("Created " & edsyncSourceFilename)
+    stderr.writeLine("Created " & edsyncSourceFilename)
     return 0
 
 when isMainModule:
