@@ -24,8 +24,9 @@ import keys
 import std/times
 import pubkeys
 import terminfo
+import admin_restart
 
-const version = "v1.6"
+const version = "v1.61"
 const appname = "updater"
 
 const catalogFilename = appname & "-catalog.sha3"
@@ -340,6 +341,7 @@ proc cmdLineMakeSourceJson(url: string): int =
     return 0
 
 when isMainModule:
+    winRunAsAdmin()
     var p = newParser:
         help("edsync " & version & ": simple http file sync")
         command("update-catalog"):
